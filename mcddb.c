@@ -5,19 +5,24 @@
 
 #include <db.h>
 
-static DB *db; // handle for the database
+static DB *db = NULL; // handle for the database
 
 int open_db(char *dbpath)
 {
 
     int ret;
 
-    char *default_path = "./mcd.db";
+    const char *default_path = "./mcd.db";
+
+    if ((ret = db_create(&db, NULL, 0)) != 0)
+    {
+        return ret;
+    }
 
     // if dbpath is NULL, then assume default_path
     if (!dbpath)
     {
-        if ((dbpath = malloc(strlen(default_path) + 1)) != NULL)
+        if ((dbpath = (char *)malloc(strlen(default_path) + 1)) != NULL)
         {
             strcpy(dbpath, default_path); // dest, source
         }
@@ -26,7 +31,7 @@ int open_db(char *dbpath)
             return -1;
         }
     }
-    if ((ret = db_open(dbpath, DB_BTREE, DB_CREATE, 0666, NULL, NULL, &db)) != 0)
+    if ((ret = db->open(db, NULL, dbpath, NULL, DB_BTREE, DB_CREATE, 0666)) != 0)
     {
         return ret; // failed
     }
@@ -39,6 +44,7 @@ int close_db(void)
     // close() automatically syncs.
     // any open cursors are also closed.
     db->close(db, 0);
+    return 0;
 }
 
 int add_rec(char *kbuf, char *vbuf)
@@ -124,7 +130,7 @@ int find_rec(char *kbuf, DBT *value)
          * strncmp compares only up to n characters (third argument)
          * make sure that the size are the same if they do have the same first n characters
          */
-        if (!strncmp(key.data, kbuf, strlen(kbuf)))
+        if (!strncmp((char *)key.data, kbuf, strlen(kbuf)))
         {
             if (key.size == strlen(kbuf))
             {
@@ -173,9 +179,11 @@ int count_recs(void)
 {
     int ret, num = 0;
     DBT key;
-    DBC *dbc;
+    DBT value;
+    DBC *dbc = NULL;
 
     memset(&key, 0, sizeof(DBT));
+    memset(&value, 0, sizeof(DBT));
 
     ret = db->cursor(db, NULL, &dbc, 0);
     if (ret != 0)
@@ -183,7 +191,7 @@ int count_recs(void)
         return 0;
     }
 
-    while (dbc->get(dbc, &key, NULL, DB_NEXT) == 0)
+    while (dbc->get(dbc, &key, &value, DB_NEXT) == 0)
     {
         num++;
     }
