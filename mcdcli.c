@@ -3,7 +3,10 @@
 #include <unistd.h>
 #include <getopt.h>
 #include <string.h>
-
+/*
+ * what could be improved is this static buffer
+ * Remove the buffer. But reasonable to keep it.
+ */
 #define BUFSZ 1024
 
 void usage(void);
